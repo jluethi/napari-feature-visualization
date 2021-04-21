@@ -6,7 +6,7 @@
 [![tests](https://github.com/jluethi/napari-feature-visualization/workflows/tests/badge.svg)](https://github.com/jluethi/napari-feature-visualization/actions)
 [![codecov](https://codecov.io/gh/jluethi/napari-feature-visualization/branch/master/graph/badge.svg)](https://codecov.io/gh/jluethi/napari-feature-visualization)
 
-Visualizing feature measurements on label images
+Napari plugin to visualize feature measurements on label images
 
 ----------------------------------
 
