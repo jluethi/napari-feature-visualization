@@ -5,5 +5,4 @@ except ImportError:
 
 
 
-
-from ._function import napari_experimental_provide_function
+from .feature_vis import napari_experimental_provide_dock_widget
