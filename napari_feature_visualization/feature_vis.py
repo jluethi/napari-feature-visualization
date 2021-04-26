@@ -49,7 +49,6 @@ def _init(widget):
     @widget.feature.changed.connect
     def update_rescaling(event):
         df = get_df(widget.DataFrame.value)
-        # TODO: Check whether feature is in df
         try:
             quantiles=(0.01, 0.99)
             widget.lower_contrast_limit.value = df[event.value].quantile(quantiles[0])
@@ -65,8 +64,8 @@ def _init(widget):
         call_button="Apply Feature Colormap",
         layout='vertical',
         DataFrame={'mode': 'r'},
-        lower_contrast_limit={"min": -1000000, "max": 1000000},
-        upper_contrast_limit={"min": -1000000, "max": 1000000},
+        lower_contrast_limit={"min": -100000000, "max": 100000000},
+        upper_contrast_limit={"min": -100000000, "max": 100000000},
         feature = {"choices": [""]},
         label_column = {"choices": [""]}, widget_init=_init,
         )
@@ -75,7 +74,7 @@ def feature_vis(label_layer: "napari.layers.Labels",
                 feature = '',
                 label_column = '',
                 Colormap=ColormapChoices.viridis,
-                lower_contrast_limit: int = 100, upper_contrast_limit: int = 900):
+                lower_contrast_limit: float = 100, upper_contrast_limit: float = 900):
     # TODO: handle the colormap choice
     site_df = get_df(DataFrame)
     site_df.loc[:, 'label'] = site_df[str(label_column)].astype(int)
