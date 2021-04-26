@@ -10,6 +10,9 @@ Napari plugin to visualize feature measurements on label images
 
 ----------------------------------
 
+![napari-feature-viz](https://user-images.githubusercontent.com/18033446/115883664-54150480-a44e-11eb-93df-ab355bb3db89.gif)
+
+----------------------------------
 This [napari] plugin was generated with [Cookiecutter] using with [@napari]'s [cookiecutter-napari-plugin] template.
 
 <!--
