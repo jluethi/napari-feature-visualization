@@ -177,7 +177,12 @@ def feature_vis(label_layer: "napari.layers.Labels",
 
     colormap = dict(zip(site_df['label'], colors))
     label_layer.color = colormap
-    #label_layer.properties = label_properties
+    try:
+        label_layer.properties = label_properties
+    except UnboundLocalError:
+        # If a napari version before 0.4.8 is used, this can't be displayed yet
+        # This this thread on the bug: https://github.com/napari/napari/issues/2477
+        print("Can't set label properties in napari versions < 0.4.8")
 
 
 @napari_hook_implementation
