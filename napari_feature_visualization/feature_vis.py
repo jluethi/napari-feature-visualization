@@ -19,7 +19,42 @@ from functools import lru_cache
 
 class ColormapChoices(Enum):
     viridis='viridis'
-    test='test'
+    plasma='plasma'
+    inferno='inferno'
+    magma='magma'
+    cividis='cividis'
+    Greys='Greys'
+    Purples='Purples'
+    Blues='Blues'
+    Greens='Greens'
+    Oranges='Oranges'
+    Reds='Reds'
+    YlOrBr='YlOrBr'
+    YlOrRd='YlOrRd'
+    OrRd='OrRd'
+    PuRd='PuRd'
+    RdPu='RdPu'
+    BuPu='BuPu'
+    GnBu='GnBu'
+    PuBu='PuBu'
+    YlGnBu='YlGnBu'
+    PuBuGn='PuBuGn'
+    BuGn='BuGn'
+    YlGn='YlGn'
+    PiYG='PiYG'
+    PRGn='PRGn'
+    BrBG='BrBG'
+    PuOr='PuOr'
+    RdGy='RdGy'
+    RdBu='RdBu'
+    RdYlBu='RdYlBu'
+    RdYlGn='RdYlGn'
+    Spectral='Spectral'
+    coolwarm='coolwarm'
+    bwr='bwr'
+    seismic='seismic'
+    turbo='turbo'
+    jet='jet'
 
 
 @lru_cache(maxsize=16)
@@ -132,8 +167,7 @@ def feature_vis(label_layer: "napari.layers.Labels",
     site_df.loc[site_df['feature_scaled'] < 0, 'feature_scaled'] = 0
     site_df.loc[site_df['feature_scaled'] > 1, 'feature_scaled'] = 1
 
-    # TODO: Handle different colormaps
-    colors = plt.cm.viridis(site_df['feature_scaled'])
+    colors = plt.cm.get_cmap(Colormap.value)(site_df['feature_scaled'])
 
     # Create an array where the index is the label value and the value is
     # the feature value
@@ -143,8 +177,6 @@ def feature_vis(label_layer: "napari.layers.Labels",
 
     colormap = dict(zip(site_df['label'], colors))
     label_layer.color = colormap
-    # TODO: Wait for fix for https://github.com/napari/napari/issues/2477
-    # Once this is in release, add this to the plugin
     #label_layer.properties = label_properties
 
 
