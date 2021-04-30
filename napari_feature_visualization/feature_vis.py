@@ -28,6 +28,48 @@ def get_df(path):
 
 
 def _init(widget):
+    def get_feature_choices(*args):
+        try:
+            df = get_df(widget.DataFrame.value)
+            return list(df.columns)
+        except IOError:
+            return [""]
+
+    # set feature and label_column "default choices"
+    # to be a function that gets the column names of the
+    # currently loaded dataframe
+    widget.feature._default_choices = get_feature_choices
+    widget.label_column._default_choices = get_feature_choices
+
+    @widget.DataFrame.changed.connect
+    def update_df_columns(event):
+        # event value will be the new path
+        # get_df will give you the cached df
+        # ...reset_choices() calls the "get_feature_choices" function above
+        # to keep them updated with the current dataframe
+        widget.feature.reset_choices()
+        widget.label_column.reset_choices()
+        features = widget.feature.choices
+        if 'label' in features:
+            widget.label_column.value = 'label'
+        elif 'Label' in features:
+            widget.label_column.value = 'Label'
+        elif 'index' in features:
+            widget.label_column.value = 'index'
+
+    @widget.feature.changed.connect
+    def update_rescaling(event):
+        df = get_df(widget.DataFrame.value)
+        try:
+            quantiles=(0.01, 0.99)
+            widget.lower_contrast_limit.value = df[event.value].quantile(quantiles[0])
+            widget.upper_contrast_limit.value = df[event.value].quantile(quantiles[1])
+        except KeyError:
+            # Don't update the limits if a feature name is entered that isn't in the dataframe
+            pass
+
+'''
+def _init(widget):
     @widget.DataFrame.changed.connect
     def update_df_columns(event):
         # Implemented following inputs from Talley Lambert:
@@ -56,7 +98,7 @@ def _init(widget):
         except KeyError:
             # Don't update the limits if a feature name is entered that isn't in the dataframe
             pass
-
+'''
 
 
 # TODO: Set better limits for contrast_limits
