@@ -1,3 +1,4 @@
+
 # napari-feature-visualization
 
 [![License](https://img.shields.io/pypi/l/napari-feature-visualization.svg?color=green)](https://github.com/jluethi/napari-feature-visualization/raw/master/LICENSE)
@@ -10,6 +11,7 @@ Napari plugin to visualize feature measurements on label images
 
 ----------------------------------
 
+![napari_plugin_on_actual_data_small](https://user-images.githubusercontent.com/18033446/116708698-40c6e380-a9d0-11eb-8e9f-97a257c7bc33.gif)
 ![napari-feature-viz](https://user-images.githubusercontent.com/18033446/115883664-54150480-a44e-11eb-93df-ab355bb3db89.gif)
 
 ----------------------------------
