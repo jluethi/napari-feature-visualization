@@ -46,19 +46,23 @@ def regionprops(image: ImageData, labels: LabelsData, napari_viewer : Viewer, si
             properties = properties + ['centroid', 'bbox', 'weighted_centroid']
 
         if moments:
-            properties = properties + ['moments', 'moments_central', 'moments_hu']
+            properties = properties + ['moments', 'moments_central', 'moments_hu', 'moments_normalized']
 
         # todo:
-        # moments_normalized
         # weighted_local_centroid
         # weighted_moments
         # weighted_moments_central
         # weighted_moments_hu
         # weighted_moments_normalized
 
+        # quantitative analysis using scikit-image's regionprops
         table = regionprops_table(np.asarray(labels).astype(int), intensity_image=np.asarray(image),
                                   properties=properties, extra_properties=extra_properties)
+
+        # turn table into a widget
         dock_widget = table_to_widget(table)
+
+        # add widget to napari
         napari_viewer.window.add_dock_widget(dock_widget, area='right')
     else:
         warnings.warn("Image and labels must be set.")
