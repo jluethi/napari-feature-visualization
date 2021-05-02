@@ -87,19 +87,13 @@ def table_to_widget(table: dict) -> QWidget:
     save_button.clicked.connect(save_trigger)
 
 
-    #view = Table(value=table)
-
-    view = QTableWidget(len(next(iter(table.values()))), len(table))
-    for i, column in enumerate(table.keys()):
-        view.setItem(0, i, QTableWidgetItem(column))
-        for j, value in enumerate(table.get(column)):
-            view.setItem(j + 1, i, QTableWidgetItem(str(value)))
+    view = Table(value=table)
 
     widget = QWidget()
     widget.setWindowTitle("region properties")
     widget.setLayout(QGridLayout())
     widget.layout().addWidget(copy_button)
     widget.layout().addWidget(save_button)
-    widget.layout().addWidget(view)
+    widget.layout().addWidget(view.native)
 
     return widget
