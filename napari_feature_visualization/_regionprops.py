@@ -23,6 +23,8 @@ def regionprops(image: ImageData, labels: LabelsData, napari_viewer : Viewer, si
         properties = ['label']
         extra_properties = []
 
+        dimensions = len(image.shape)
+
         if size:
             properties = properties + ['area', 'bbox_area', 'convex_area', 'equivalent_diameter']
 
@@ -35,20 +37,24 @@ def regionprops(image: ImageData, labels: LabelsData, napari_viewer : Viewer, si
 
             extra_properties.append(standard_deviation_intensity)
 
-        if perimeter:
-            properties = properties + ['perimeter', 'perimeter_crofton']
+        if perimeter and dimensions == 2:
+                properties = properties + ['perimeter', 'perimeter_crofton']
 
         if shape:
-            properties = properties + ['major_axis_length', 'minor_axis_length', 'orientation', 'solidity', 'eccentricity', 'extent', 'feret_diameter_max', 'local_centroid']
-            # euler_number
+            properties = properties + ['major_axis_length', 'minor_axis_length', 'solidity', 'extent', 'feret_diameter_max', 'local_centroid']
+            if dimensions == 2:
+                properties = properties + ['orientation', 'eccentricity']
 
         if position:
             properties = properties + ['centroid', 'bbox', 'weighted_centroid']
 
         if moments:
-            properties = properties + ['moments', 'moments_central', 'moments_hu', 'moments_normalized']
+            properties = properties + ['moments', 'moments_central', 'moments_normalized']
+            if dimensions == 2:
+                properties = properties + ['moments_hu']
 
         # todo:
+        # euler_number
         # weighted_local_centroid
         # weighted_moments
         # weighted_moments_central
