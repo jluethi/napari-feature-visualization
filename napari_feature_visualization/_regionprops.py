@@ -26,7 +26,9 @@ def regionprops(image: ImageData, labels: LabelsData, napari_viewer : Viewer, si
         dimensions = len(image.shape)
 
         if size:
-            properties = properties + ['area', 'bbox_area', 'convex_area', 'equivalent_diameter']
+            properties = properties + ['area', 'bbox_area', 'equivalent_diameter']
+            if dimensions == 2:
+                properties = properties + ['convex_area']
 
         if intensity:
             properties = properties + ['max_intensity', 'mean_intensity', 'min_intensity']
@@ -41,9 +43,9 @@ def regionprops(image: ImageData, labels: LabelsData, napari_viewer : Viewer, si
                 properties = properties + ['perimeter', 'perimeter_crofton']
 
         if shape:
-            properties = properties + ['major_axis_length', 'minor_axis_length', 'solidity', 'extent', 'feret_diameter_max', 'local_centroid']
+            properties = properties + ['major_axis_length', 'minor_axis_length', 'extent', 'local_centroid']
             if dimensions == 2:
-                properties = properties + ['orientation', 'eccentricity']
+                properties = properties + ['solidity', 'orientation', 'eccentricity', 'feret_diameter_max']
 
         if position:
             properties = properties + ['centroid', 'bbox', 'weighted_centroid']
