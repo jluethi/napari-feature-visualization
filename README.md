@@ -10,9 +10,15 @@
 Napari plugin to visualize feature measurements on label images
 
 ----------------------------------
-
+This plugin currently contains two widgets:
+1. Feature visualization  
 ![napari_plugin_on_actual_data_small](https://user-images.githubusercontent.com/18033446/116708698-40c6e380-a9d0-11eb-8e9f-97a257c7bc33.gif)
 ![napari-feature-viz](https://user-images.githubusercontent.com/18033446/115883664-54150480-a44e-11eb-93df-ab355bb3db89.gif)
+
+2. Calculation of scikit-image regionprops
+![a15ba3b2f55de8679b91bda4f41a2b7b80691292_2_690x390](https://user-images.githubusercontent.com/18033446/117011582-4123ef00-acee-11eb-9c43-bf9336dcb038.jpeg)
+
+Features calculated with the regionprops widget can be saved to csv and visualized using the feature_vis widget.
 
 ----------------------------------
 This [napari] plugin was generated with [Cookiecutter] using with [@napari]'s [cookiecutter-napari-plugin] template.
@@ -27,9 +33,17 @@ https://napari.org/docs/plugins/index.html
 
 ## Installation
 
-You can install `napari-feature-visualization` via [pip]:
-
-    pip install napari-feature-visualization
+This plugin is not available via pipy yet.
+So far, git clone it and pip install it using:
+```
+    cd napari-feature-visualization
+    pip install .
+```
+For full functionality, recent bug-fixes in napari and magicgui are required that have not been released via pipy yet. To get the pre-release version, install them directly:
+```
+pip install git+https://github.com/napari/napari.git
+pip install git+https://github.com/napari/magicgui.git
+```
 
 ## Contributing
 
