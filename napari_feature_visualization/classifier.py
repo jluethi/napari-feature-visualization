@@ -49,6 +49,7 @@ def classifier_initialize(viewer: Viewer,
     # TODO: Add option to load a classifier. Potentially separate widget, e.g. widget 1 = create classifier. Widget 2 = load classifier
     # TODO: Make feature selection a widget that allows multiple features to be selected, not just one
     # TODO: Make the label column in index something selectable
+    # TODO: Check that input features are numeric
     training_features = [feature_selection]
 
     site_df = get_df(DataFrame)
@@ -68,17 +69,14 @@ def classifier_initialize(viewer: Viewer,
     update_label_colormap(prediction_layer, clf.predict_data, 'predict', DataFrame)
     viewer.layers.selection.clear()
     viewer.layers.selection.add(label_layer)
-    #label_layer.selected = True
-    #selection_layer.selected = False
-    #prediction_layer.selected = False
 
-    widget = selector_widget(clf, label_layer, DataFrame, selection_layer)
+    widget = selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_layer, viewer)
 
     # add widget to napari
     viewer.window.add_dock_widget(widget, area='right', name=classifier_name)
 
 
-def selector_widget(clf, label_layer, DataFrame, selection_layer):
+def selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_layer, viewer):
     # TODO: Generalize this. Instead of 0, 1, 2: Arbitrary class numbers. Ability to add classes & name them?
     choices = ['Deselect', 'Class 1', 'Class 2', 'Class 3', 'Class 4']
     selector = widgets.RadioButtons(choices=choices, label='Selection Class:')
@@ -98,6 +96,9 @@ def selector_widget(clf, label_layer, DataFrame, selection_layer):
 
     @selector.changed.connect
     def change_choice(choice):
+        # TODO: Turn off prediction visibility and turn on selection visibility
+        selection_layer.visible=True
+        prediction_layer.visible=False
         viewer.layers.selection.clear()
         viewer.layers.selection.add(label_layer)
 
@@ -109,7 +110,9 @@ def selector_widget(clf, label_layer, DataFrame, selection_layer):
     @run_button.changed.connect
     def run_classifier(event):
         print('Running classifier')
-        # TODO: Trigger classifier run
+        clf.train()
+        update_label_colormap(prediction_layer, clf.predict_data, 'predict', DataFrame)
+        clf.save()
 
     return container
 
@@ -124,6 +127,7 @@ def update_label_colormap(label_layer, df, feature, DataFrame):
     for label in df.index.get_level_values(1):
         color_dict[label] = manual_cmap[df.loc[(DataFrame, label), feature]]
     label_layer.color = color_dict
+    label_layer.visible=True
 
 
 
