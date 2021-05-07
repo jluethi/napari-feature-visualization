@@ -53,6 +53,7 @@ def initialize_classifier(viewer: Viewer,
                       feature_selection='',
                       additional_features='',
                       label_column=''):
+    # TODO: Major refactor: Create a class ClassifierWidget. Instead of passing all the info, have it in there. Plus, have good init function
     # TODO: Make feature selection a widget that allows multiple features to be selected, not just one
     # Something like this in QListWidget: https://stackoverflow.com/questions/4008649/qlistwidget-and-multiple-selection
     # See issue here: https://github.com/napari/magicgui/issues/229
@@ -75,12 +76,12 @@ def initialize_classifier(viewer: Viewer,
     # https://napari.org/guides/stable/magicgui.html#updating-an-existing-layer
     prediction_layer = viewer.add_labels(label_layer.data, name='prediction', opacity=1.0, scale=label_layer.scale)
     selection_layer = viewer.add_labels(label_layer.data, name='selection', opacity=1.0, scale=label_layer.scale)
-    update_label_colormap(selection_layer, clf.train_data, 'train', DataFrame)
-    update_label_colormap(prediction_layer, clf.predict_data, 'predict', DataFrame)
+    colordict = create_label_colormap(selection_layer, clf.train_data, 'train', DataFrame)
+    create_label_colormap(prediction_layer, clf.predict_data, 'predict', DataFrame)
     viewer.layers.selection.clear()
     viewer.layers.selection.add(label_layer)
 
-    widget = selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_layer, viewer)
+    widget = selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_layer, viewer, colordict)
 
     # TODO: Add a warning if a classifier with this name already exists => shall it be overwritten? => Confirmation box
 
@@ -116,7 +117,6 @@ def load_classifier(viewer: Viewer,
     # TODO: Notify the user why the classifier is not loaded
     site_df = site_df.set_index(list(index_columns))
 
-    # TODO: Check if data needs to be added to the classifier
     clf.add_data(site_df, training_features=training_features, index_columns=index_columns)
     clf.save()
 
@@ -125,18 +125,18 @@ def load_classifier(viewer: Viewer,
     # https://napari.org/guides/stable/magicgui.html#updating-an-existing-layer
     prediction_layer = viewer.add_labels(label_layer.data, name='prediction', opacity=1.0, scale=label_layer.scale)
     selection_layer = viewer.add_labels(label_layer.data, name='selection', opacity=1.0, scale=label_layer.scale)
-    update_label_colormap(selection_layer, clf.train_data, 'train', DataFrame)
-    update_label_colormap(prediction_layer, clf.predict_data, 'predict', DataFrame)
+    colordict = create_label_colormap(selection_layer, clf.train_data, 'train', DataFrame)
+    create_label_colormap(prediction_layer, clf.predict_data, 'predict', DataFrame)
     viewer.layers.selection.clear()
     viewer.layers.selection.add(label_layer)
 
-    widget = selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_layer, viewer)
+    widget = selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_layer, viewer, colordict)
 
     # add widget to napari
     viewer.window.add_dock_widget(widget, area='right', name=classifier_name)
 
 
-def selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_layer, viewer):
+def selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_layer, viewer, colordict):
     # TODO: Define a minimum number of selections. Below that, show a warning (training-test split can be very weird otherwise, e.g all 1 class)
     # TODO: Generalize this. Instead of 0, 1, 2: Arbitrary class numbers. Ability to add classes & name them?
     choices = ['Deselect', 'Class 1', 'Class 2', 'Class 3', 'Class 4']
@@ -165,7 +165,7 @@ def selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_lay
                 #clf.train_data.loc[(DataFrame, label)] = selector.value
                 # Assign a numeric value to make it easier (colormap currently only supports this mode)
                 clf.train_data.loc[(DataFrame, label)] = choices.index(selector.value)
-                update_label_colormap(selection_layer, clf.train_data, 'train', DataFrame)
+                update_label_colormap(selection_layer, label, choices.index(selector.value), colordict)
             else:
                 # TODO: Give feedback to the user that there is no data for a specific label object in the dataframe provided?
                 pass
@@ -186,7 +186,7 @@ def selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_lay
     def run_classifier(event):
         print('Running classifier')
         clf.train()
-        update_label_colormap(prediction_layer, clf.predict_data, 'predict', DataFrame)
+        create_label_colormap(prediction_layer, clf.predict_data, 'predict', DataFrame)
         clf.save()
         selection_layer.visible=False
         prediction_layer.visible=True
@@ -195,10 +195,19 @@ def selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_lay
     return container
 
 
-def update_label_colormap(label_layer, df, feature, DataFrame):
+def update_label_colormap(label_layer, label, new_class, colordict):
     # TODO: Profile this function => can I speed it up?
     # One idea for speed-up: Change to 2 functions. 1 for initial calculation, returns colordict.
     # New one for just updating a single label
+    nb_classes = 4
+    cmap = ListedColormap([(0.0, 0.0, 0.0, 0.0), (1.0, 0.0, 0.0, 1.0), (0.0, 1.0, 0.0, 1.0), (0.0, 0.0, 1.0, 1.0), (1.0, 0.0, 1.0, 1.0)])
+
+    colordict[label] = cmap(new_class/nb_classes)
+    label_layer.color = colordict
+
+
+def create_label_colormap(label_layer, df, feature, DataFrame):
+    # TODO: Profile this function => can I speed it up?
     nb_classes = 4
     cmap = ListedColormap([(0.0, 0.0, 0.0, 0.0), (1.0, 0.0, 0.0, 1.0), (0.0, 1.0, 0.0, 1.0), (0.0, 0.0, 1.0, 1.0), (1.0, 0.0, 1.0, 1.0)])
     color_dict = {}
@@ -207,4 +216,4 @@ def update_label_colormap(label_layer, df, feature, DataFrame):
     colors = cmap(site_df[feature]/nb_classes)
     colordict = dict(zip(site_df.index, colors))
     label_layer.color = colordict
-    #label_layer.visible=True
+    return colordict
