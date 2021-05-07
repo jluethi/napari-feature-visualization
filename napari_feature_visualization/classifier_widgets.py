@@ -5,6 +5,7 @@ import pickle
 import pandas as pd
 import numpy as np
 from pathlib import Path
+from matplotlib.colors import ListedColormap
 from .utils import get_df
 from .classifier import Classifier
 
@@ -100,6 +101,7 @@ def load_classifier(viewer: Viewer,
     # TODO: Add option to add new features to the classifier that were not added at initialization => unsure where to do this. Should it also be possible when initializing a classifier?
     # TODO: Add ability to see currently selected features
     # TODO: Ensure classifier path ends in .clf and DataFrame path ends in .csv
+    # TODO: Can I take a guess for the dataframe path & name based on the filename of the site? Can I get the filename of the current site somehow? => probably not?
     classifier_name = classifier_path.stem
 
     with open(classifier_path, 'rb') as f:
@@ -146,6 +148,7 @@ def selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_lay
 
     @label_layer.mouse_drag_callbacks.append
     def toggle_label(label_layer, event):
+        selection_layer.visible=True
         # Need to scale position that event.position returns by the label_layer scale.
         # If scale is (1, 1, 1), nothing changes
         # If scale is anything else, this makes the click still match the correct label
@@ -193,15 +196,15 @@ def selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_lay
 
 
 def update_label_colormap(label_layer, df, feature, DataFrame):
-    # TODO: Implement a real colormap for this
-    # Currently doesn't work for more than 5 classes (0-4)
-
-    # TODO: This implementation is problematic for performance reasons. Relatively slow on larger dataset
-    manual_cmap = np.array([(0.0, 0.0, 0.0, 0.0), (1.0, 0.0, 0.0, 1.0),
-                            (0.0, 1.0, 0.0, 1.0), (0.0, 0.0, 1.0, 1.0), (1.0, 0.0, 1.0, 1.0)])
-
+    # TODO: Profile this function => can I speed it up?
+    # One idea for speed-up: Change to 2 functions. 1 for initial calculation, returns colordict.
+    # New one for just updating a single label
+    nb_classes = 4
+    cmap = ListedColormap([(0.0, 0.0, 0.0, 0.0), (1.0, 0.0, 0.0, 1.0), (0.0, 1.0, 0.0, 1.0), (0.0, 0.0, 1.0, 1.0), (1.0, 0.0, 1.0, 1.0)])
     color_dict = {}
-    for label in df.index.get_level_values(1):
-        color_dict[label] = manual_cmap[df.loc[(DataFrame, label), feature]]
-    label_layer.color = color_dict
-    label_layer.visible=True
+    site_df = df[df.index.isin([DataFrame], level=0)]
+    site_df.index = site_df.index.droplevel()
+    colors = cmap(site_df[feature]/nb_classes)
+    colordict = dict(zip(site_df.index, colors))
+    label_layer.color = colordict
+    #label_layer.visible=True
