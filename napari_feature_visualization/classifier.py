@@ -68,8 +68,8 @@ class Classifier:
             # site where the data has been loaded before
             pass
         else:
-            new_data.loc['train'] = 0
-            new_data.loc['predict'] = 0
+            new_data['train'] = 0
+            new_data['predict'] = 0
             self.train_data = self.train_data.append(new_data[['train']])
             self.predict_data = self.predict_data.append(new_data[['predict']])
             self.data = self.data.append(new_data[training_features])
