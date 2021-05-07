@@ -146,8 +146,12 @@ def selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_lay
 
     @label_layer.mouse_drag_callbacks.append
     def toggle_label(label_layer, event):
-        # TODO: Bug! This readout is not working correctly when the image has a scale that isn't (1, 1, 1)
-        label = label_layer.get_value(event.position)
+        # Need to scale position that event.position returns by the label_layer scale.
+        # If scale is (1, 1, 1), nothing changes
+        # If scale is anything else, this makes the click still match the correct label
+        scaled_position = tuple(pos / scale for pos, scale in zip(event.position, label_layer.scale))
+        label = label_layer.get_value(scaled_position)
+        #label = label_layer.get_value(event.position)
         # Check if background or foreground was clicked. If background was clicked, do nothing (background can't be assigned a class)
         if label == 0:
             pass
@@ -183,6 +187,7 @@ def selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_lay
         clf.save()
         selection_layer.visible=False
         prediction_layer.visible=True
+        # TODO: Report classifier performance to the user?
 
     return container
 
