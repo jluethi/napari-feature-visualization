@@ -72,8 +72,8 @@ def initialize_classifier(viewer: Viewer,
     # Create a selection & prediction layer
     # TODO: Handle state when those layers were already created. Replace them otherwise?
     # https://napari.org/guides/stable/magicgui.html#updating-an-existing-layer
-    selection_layer = viewer.add_labels(label_layer.data, name='selection', opacity=1.0, scale=label_layer.scale)
     prediction_layer = viewer.add_labels(label_layer.data, name='prediction', opacity=1.0, scale=label_layer.scale)
+    selection_layer = viewer.add_labels(label_layer.data, name='selection', opacity=1.0, scale=label_layer.scale)
     update_label_colormap(selection_layer, clf.train_data, 'train', DataFrame)
     update_label_colormap(prediction_layer, clf.predict_data, 'predict', DataFrame)
     viewer.layers.selection.clear()
@@ -121,8 +121,8 @@ def load_classifier(viewer: Viewer,
     # Create a selection & prediction layer
     # TODO: Handle state when those layers were already created. Replace them otherwise?
     # https://napari.org/guides/stable/magicgui.html#updating-an-existing-layer
-    selection_layer = viewer.add_labels(label_layer.data, name='selection', opacity=1.0, scale=label_layer.scale)
     prediction_layer = viewer.add_labels(label_layer.data, name='prediction', opacity=1.0, scale=label_layer.scale)
+    selection_layer = viewer.add_labels(label_layer.data, name='selection', opacity=1.0, scale=label_layer.scale)
     update_label_colormap(selection_layer, clf.train_data, 'train', DataFrame)
     update_label_colormap(prediction_layer, clf.predict_data, 'predict', DataFrame)
     viewer.layers.selection.clear()
@@ -146,6 +146,7 @@ def selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_lay
 
     @label_layer.mouse_drag_callbacks.append
     def toggle_label(label_layer, event):
+        # TODO: Bug! This readout is not working correctly when the image has a scale that isn't (1, 1, 1)
         label = label_layer.get_value(event.position)
         # Check if background or foreground was clicked. If background was clicked, do nothing (background can't be assigned a class)
         if label == 0:
@@ -165,7 +166,7 @@ def selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_lay
     @selector.changed.connect
     def change_choice(choice):
         selection_layer.visible=True
-        prediction_layer.visible=False
+        #prediction_layer.visible=False
         viewer.layers.selection.clear()
         viewer.layers.selection.add(label_layer)
 
@@ -180,6 +181,8 @@ def selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_lay
         clf.train()
         update_label_colormap(prediction_layer, clf.predict_data, 'predict', DataFrame)
         clf.save()
+        selection_layer.visible=False
+        prediction_layer.visible=True
 
     return container
 
@@ -187,6 +190,8 @@ def selector_widget(clf, label_layer, DataFrame, selection_layer, prediction_lay
 def update_label_colormap(label_layer, df, feature, DataFrame):
     # TODO: Implement a real colormap for this
     # Currently doesn't work for more than 5 classes (0-4)
+
+    # TODO: This implementation is problematic for performance reasons. Relatively slow on larger dataset
     manual_cmap = np.array([(0.0, 0.0, 0.0, 0.0), (1.0, 0.0, 0.0, 1.0),
                             (0.0, 1.0, 0.0, 1.0), (0.0, 0.0, 1.0, 1.0), (1.0, 0.0, 1.0, 1.0)])
 
