@@ -39,7 +39,20 @@ def _init_classifier(widget):
         elif 'index' in features:
             widget.label_column.value = 'index'
 
-#DataFrame = '/Users/joel/Dropbox/Joel/PelkmansLab/Code/napari-feature-visualization/napari_feature_visualization/test_df_3.csv',
+        if 'additional_features' in widget.label_layer.value.properties:
+            widget.additional_features.value = widget.label_layer.value.properties['additional_features']
+        # TODO: Allow all features / also the initial feature to be set. Currently is being called before the lis
+
+        if 'feature_selection' in widget.label_layer.value.properties:
+            if widget.label_layer.value.properties['feature_selection'] in widget.feature_selection.choices:
+                widget.feature_selection.value = widget.label_layer.value.properties['feature_selection']
+
+    @widget.label_layer.changed.connect
+    def update_paths(event):
+        if 'DataFrame' in widget.label_layer.value.properties:
+            widget.DataFrame.value = widget.label_layer.value.properties['DataFrame']
+
+
 @magic_factory(
         call_button="Initialize Classifier",
         feature_selection = {"choices": [""]},
@@ -72,8 +85,23 @@ def initialize_classifier(viewer: Viewer,
     ClassifierWidget(clf, label_layer, DataFrame, viewer)
 
 
+def _init_load_classifier(widget):
+    # Trying to be smart with handling inputs
+    # TODO: Add an option to check the current working directory for .clf files?
+    #       As an option if no classifier_path is provided as a property
+    # TODO: Check if a label layer is available, only do this then
+    # Inputs always update with properties when label layer is changed.
+    @widget.label_layer.changed.connect
+    def update_paths(event):
+        if 'classifier_path' in widget.label_layer.value.properties:
+            widget.classifier_path.value = widget.label_layer.value.properties['classifier_path']
+        if 'DataFrame' in widget.label_layer.value.properties:
+            widget.DataFrame.value = widget.label_layer.value.properties['DataFrame']
+
+
 @magic_factory(
         call_button="Load Classifier",
+        widget_init=_init_load_classifier
         )
 def load_classifier(viewer: Viewer,
                     label_layer: "napari.layers.Labels",
@@ -86,6 +114,8 @@ def load_classifier(viewer: Viewer,
     # TODO: Add ability to see currently selected features
     # TODO: Ensure classifier path ends in .clf and DataFrame path ends in .csv
     # TODO: Can I take a guess for the dataframe path & name based on the filename of the site? Can I get the filename of the current site somehow? => probably not?
+    # TODO: Idea for improved input handling: Out detect any .clf files in the current working directory. If any exist, pick the most recent one by default
+    # TODO: If the label layer has properties for classifier_path and DataFrame, pick those => ways to parse inputs
     #classifier_name = classifier_path.stem
 
     with open(classifier_path, 'rb') as f:
@@ -96,7 +126,7 @@ def load_classifier(viewer: Viewer,
     site_df['path']=DataFrame
     index_columns=clf.index_columns
     # Catches if new data frame doesn't contain the index columns
-    assert(all([index_column in site_df.columns for index_column in index_columns]))
+    assert all([index_column in site_df.columns for index_column in index_columns]), 'These two columns are not available in the current dataframe: {}'.format(index_columns)
     # TODO: Notify the user why the classifier is not loaded
     site_df = site_df.set_index(list(index_columns))
 
@@ -194,20 +224,28 @@ class ClassifierWidget:
         return container
 
 
-    def update_label_colormap(self, label_layer, label, new_class):
+    def update_label_colormap(self, curr_label_layer, label, new_class):
         # TODO: This is still kinda laggy on large dataset. Profile this function => can I speed it up?
         # Is there a way to not send a whole new colormap, but just change the colormap in one place?
         # Check if the label_layer has a colormap property that could be modified
         # Check here: viewer.layers['labels'].colormap
         # If I can figure out how to change just the colormap, maybe that is faster than sending a whole colordict
         self.colordict[label] = self.cmap(new_class/self.nb_classes)
-        label_layer.color = self.colordict
+        curr_label_layer.color = self.colordict
+        # Directly change just the color of the one object, not replacing the whole colormap
+        #curr_label_layer.color[label] = self.cmap(new_class/self.nb_classes)
+        # Doesn't do anything. Color doesn't update.
+        # How is color updated when a whole colormap is provided?
+        # This gets to the _color property. But doesn't update the visible colormap
+
+        # See here for discussion on this topic: https://forum.image.sc/t/napari-layer-colormaps-update-individual-objects-only/52547
+        # And here for the napari issue: https://github.com/napari/napari/issues/2380
 
 
-    def create_label_colormap(self, label_layer, df, feature):
+    def create_label_colormap(self, curr_label_layer, df, feature):
         site_df = df[df.index.isin([self.DataFrame], level=0)]
         site_df.index = site_df.index.droplevel()
         colors = self.cmap(site_df[feature]/self.nb_classes)
         colordict = dict(zip(site_df.index, colors))
-        label_layer.color = colordict
+        curr_label_layer.color = colordict
         return colordict
