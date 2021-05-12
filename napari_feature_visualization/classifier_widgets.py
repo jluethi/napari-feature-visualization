@@ -5,6 +5,7 @@ import pickle
 import pandas as pd
 import numpy as np
 from pathlib import Path
+import warnings
 from matplotlib.colors import ListedColormap
 from .utils import get_df
 from .classifier import Classifier
@@ -41,7 +42,6 @@ def _init_classifier(widget):
 
         if 'additional_features' in widget.label_layer.value.properties:
             widget.additional_features.value = widget.label_layer.value.properties['additional_features']
-        # TODO: Allow all features / also the initial feature to be set. Currently is being called before the lis
 
         if 'feature_selection' in widget.label_layer.value.properties:
             if widget.label_layer.value.properties['feature_selection'] in widget.feature_selection.choices:
@@ -66,10 +66,10 @@ def initialize_classifier(viewer: Viewer,
                       feature_selection='',
                       additional_features='',
                       label_column=''):
+    # TODO: Add a warning if a classifier with this name already exists => shall it be overwritten? => Confirmation box
     # TODO: Make feature selection a widget that allows multiple features to be selected, not just one
     # Something like this in QListWidget: https://stackoverflow.com/questions/4008649/qlistwidget-and-multiple-selection
     # See issue here: https://github.com/napari/magicgui/issues/229
-    # TODO: Check that input features are numeric => do in classifier, deal with exception here
     training_features = [feature_selection]
 
     # Workaround: provide a text box to enter additional features separated by comma, parse them as well
@@ -86,10 +86,8 @@ def initialize_classifier(viewer: Viewer,
 
 
 def _init_load_classifier(widget):
-    # Trying to be smart with handling inputs
     # TODO: Add an option to check the current working directory for .clf files?
     #       As an option if no classifier_path is provided as a property
-    # TODO: Check if a label layer is available, only do this then
     # Inputs always update with properties when label layer is changed.
     @widget.label_layer.changed.connect
     def update_paths(event):
@@ -107,15 +105,9 @@ def load_classifier(viewer: Viewer,
                     label_layer: "napari.layers.Labels",
                     classifier_path: Path,
                     DataFrame: Path):
-    # TODO: Refactor: Could this be integrated with the initialize widget, with optional inputs? Could be tricky
-    # TODO: Make classifier path optional? If no path is added (empty path object?, None?), don't add data to the classifier, take the existing data?
-    #       BUT: Needed for site identification atm => not possible to leave out
     # TODO: Add option to add new features to the classifier that were not added at initialization => unsure where to do this. Should it also be possible when initializing a classifier?
     # TODO: Add ability to see currently selected features
     # TODO: Ensure classifier path ends in .clf and DataFrame path ends in .csv
-    # TODO: Can I take a guess for the dataframe path & name based on the filename of the site? Can I get the filename of the current site somehow? => probably not?
-    # TODO: Idea for improved input handling: Out detect any .clf files in the current working directory. If any exist, pick the most recent one by default
-    # TODO: If the label layer has properties for classifier_path and DataFrame, pick those => ways to parse inputs
     #classifier_name = classifier_path.stem
 
     with open(classifier_path, 'rb') as f:
@@ -127,7 +119,6 @@ def load_classifier(viewer: Viewer,
     index_columns=clf.index_columns
     # Catches if new data frame doesn't contain the index columns
     assert all([index_column in site_df.columns for index_column in index_columns]), 'These two columns are not available in the current dataframe: {}'.format(index_columns)
-    # TODO: Notify the user why the classifier is not loaded
     site_df = site_df.set_index(list(index_columns))
 
     clf.add_data(site_df, training_features=training_features, index_columns=index_columns)
@@ -138,20 +129,23 @@ def load_classifier(viewer: Viewer,
 class ClassifierWidget:
     def __init__(self, clf, label_layer, DataFrame, viewer):
         self.clf = clf
-        # TODO: Add a warning if a classifier with this name already exists => shall it be overwritten? => Confirmation box
         self.clf.save()
         self.label_layer = label_layer
         self.DataFrame = DataFrame
         self.viewer = viewer
 
         # Parameters for the colormaps
-        # TODO: Generalize number of classes & colormap?
+        # TODO: Generalize number of classes & colormap
         self.nb_classes = 4
         self.cmap = ListedColormap([(0.0, 0.0, 0.0, 0.0), (1.0, 0.0, 0.0, 1.0), (0.0, 1.0, 0.0, 1.0), (0.0, 0.0, 1.0, 1.0), (1.0, 0.0, 1.0, 1.0)])
 
         # Create a selection & prediction layer
         # TODO: Handle state when those layers were already created. Replace them otherwise?
         # https://napari.org/guides/stable/magicgui.html#updating-an-existing-layer
+        if 'prediction' in viewer.layers:
+            viewer.layers.remove('prediction')
+        if 'selection' in viewer.layers:
+            viewer.layers.remove('selection')
         self.prediction_layer = viewer.add_labels(label_layer.data, name='prediction', opacity=1.0, scale=label_layer.scale)
         self.selection_layer = viewer.add_labels(label_layer.data, name='selection', opacity=1.0, scale=label_layer.scale)
         self.colordict = self.create_label_colormap(self.selection_layer, clf.train_data, 'train')
@@ -161,22 +155,32 @@ class ClassifierWidget:
 
         widget = self.create_selector_widget(self.label_layer)
 
+        # If a widget already exists for the classifier with the same name, remove it
+        # TODO: Is there a way to get rid of other class selection windows?
+        # I don't have a pointer to them and they could have arbitrary names
+        try:
+            if self.clf.name in viewer.window._dock_widgets:
+                viewer.window.remove_dock_widget(viewer.window._dock_widgets[self.clf.name])
+        except:
+            # If the API for getting dock_widgets changes, just ignore this.
+            # This is optional functionality
+            pass
+
         # add widget to napari
         viewer.window.add_dock_widget(widget, area='right', name=clf.name)
 
     def create_selector_widget(self, label_layer):
-        # TODO: Define a minimum number of selections. Below that, show a warning (training-test split can be very weird otherwise, e.g all 1 class)
-        # TODO: Generalize this. Instead of 0, 1, 2: Arbitrary class numbers. Ability to add classes & name them?
+        # TODO: Generalize this. Instead of 0, 1, 2, 3, 4: Arbitrary class numbers. Ability to add classes & name them?
         choices = ['Deselect', 'Class 1', 'Class 2', 'Class 3', 'Class 4']
-        # TODO: Make default choice Class 1
-        selector = widgets.RadioButtons(choices=choices, label='Selection Class:')
+        selector = widgets.RadioButtons(choices=choices, label='Selection Class:', value='Class 1')
         save_button = widgets.PushButton(value=True, text='Save Classifier')
         run_button = widgets.PushButton(value=True, text='Run Classifier')
         container = widgets.Container(widgets=[selector, save_button, run_button])
-        # TODO: Add text field & button to save classifier output to disk
+        # TODO: Add text field & button to save classifier output to disk for a given site
 
         @label_layer.mouse_drag_callbacks.append
         def toggle_label(obj, event):
+            # TODO: Add a warning when user clicks while the wrong layer is selected?
             self.selection_layer.visible=True
             # Need to scale position that event.position returns by the label_layer scale.
             # If scale is (1, 1, 1), nothing changes
@@ -184,8 +188,10 @@ class ClassifierWidget:
             scaled_position = tuple(pos / scale for pos, scale in zip(event.position, label_layer.scale))
             label = label_layer.get_value(scaled_position)
             #label = label_layer.get_value(event.position)
+            if selector.value is None:
+                warnings.warn('No class is selected. Select a class in the classifier widget.')
             # Check if background or foreground was clicked. If background was clicked, do nothing (background can't be assigned a class)
-            if label == 0:
+            elif label == 0:
                 pass
             else:
                 # Check if the label exists in the current dataframe. Otherwise, do nothing
@@ -196,8 +202,10 @@ class ClassifierWidget:
                     self.clf.train_data.loc[(self.DataFrame, label)] = choices.index(selector.value)
                     self.update_label_colormap(self.selection_layer, label, choices.index(selector.value))
                 else:
-                    # TODO: Give feedback to the user that there is no data for a specific label object in the dataframe provided?
-                    pass
+                    warnings.warn('The data that was provided to the classifier '\
+                                  'does not contain an object with index {}. '\
+                                  'Thus, this object cannot be included in the ' \
+                                  'classifier'.format(label))
 
         @selector.changed.connect
         def change_choice(choice):
@@ -219,27 +227,21 @@ class ClassifierWidget:
             self.clf.save()
             self.selection_layer.visible=False
             self.prediction_layer.visible=True
-            # TODO: Report classifier performance to the user?
+            # TODO: Report classifier performance to the user? => Get the print into the napari notification engine
 
         return container
 
 
     def update_label_colormap(self, curr_label_layer, label, new_class):
-        # TODO: This is still kinda laggy on large dataset. Profile this function => can I speed it up?
+        # This is still kinda laggy on large dataset.
         # Is there a way to not send a whole new colormap, but just change the colormap in one place?
-        # Check if the label_layer has a colormap property that could be modified
-        # Check here: viewer.layers['labels'].colormap
-        # If I can figure out how to change just the colormap, maybe that is faster than sending a whole colordict
+        # See here for discussion on this topic: https://forum.image.sc/t/napari-layer-colormaps-update-individual-objects-only/52547
+        # And here for the napari issue: https://github.com/napari/napari/issues/2380
         self.colordict[label] = self.cmap(new_class/self.nb_classes)
         curr_label_layer.color = self.colordict
         # Directly change just the color of the one object, not replacing the whole colormap
         #curr_label_layer.color[label] = self.cmap(new_class/self.nb_classes)
         # Doesn't do anything. Color doesn't update.
-        # How is color updated when a whole colormap is provided?
-        # This gets to the _color property. But doesn't update the visible colormap
-
-        # See here for discussion on this topic: https://forum.image.sc/t/napari-layer-colormaps-update-individual-objects-only/52547
-        # And here for the napari issue: https://github.com/napari/napari/issues/2380
 
 
     def create_label_colormap(self, curr_label_layer, df, feature):

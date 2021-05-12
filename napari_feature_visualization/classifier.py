@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import pickle
+import os
 
 
 def make_identifier(df):
@@ -17,12 +18,13 @@ def test_set_check(identifier, test_ratio):
     return crc32(np.int64(hash(identifier))) & 0xFFFFFFFF < test_ratio * 2 ** 32
 
 
-def rename_classifier(classifier_path, new_name):
+def rename_classifier(classifier_path, new_name, delete_old_version=False):
     with open(classifier_path, 'rb') as f:
         clf = pickle.loads(f.read())
     clf.name = new_name
     clf.save()
-    # TODO: Delete old version?
+    if delete_old_version:
+        os.remove(classifier_path)
 
 
 class Classifier:
@@ -45,37 +47,40 @@ class Classifier:
         #   Give the user an option to turn this off? E.g. via channel properties on the label image?
         # 3. Handle booleans: Convert to numeric 0 & 1.
 
-        # TODO: Enable any kind of data normalization/scaling? Would it make a difference?
+        # TODO: Enable any kind of data normalization/scaling? Would it make a difference? No for a random forest, right?
 
-    # TODO: Change back test_perc to something more reasonable like 0.2
-    # Having it at 0.3 now to reduce issues when the dataset has no test samples
     @staticmethod
-    def train_test_split(df, test_perc=0.3, index_columns=None):
-        # TODO: Ensure at least 1 per class?
+    def train_test_split(df, test_perc=0.2, index_columns=None):
         in_test_set = make_identifier(df.reset_index()[list(index_columns)]).apply(
             test_set_check, args=(test_perc,)
         )
+
+        if in_test_set.sum() == 0:
+            warnings.warn('Not enough training data. No training data was put in the test set and classifier will fail.')
+        if in_test_set.sum() == len(in_test_set):
+            warnings.warn('Not enough training data. All your selections became test data and there is nothing to train the classifier on')
         return df.iloc[~in_test_set.values, :], df.iloc[in_test_set.values, :]
 
-    #TODO: Add a add_data method that checks if the data is already in the
-    #classifier and adds it otherwise
+
     def add_data(self, features, training_features, index_columns):
         # Check that training features agree with already existing training features
-        assert training_features == self.training_features
+        assert training_features == self.training_features, 'The training '\
+                'features provided to the classifier are different to what has '\
+                'been used for training so far. This has not been implemented '\
+                'yet. Old vs. new: {} vs. {}'.format(self.training_features, training_features)
         # Optionally: Allow option to change training features.
         # Two possible design implementations:
         # 1. Always keep all features for the loaded dataframes => memory hungry
         # 2. Reload dataframes when features are added (potentially io-hungry)
-        # 2. Would mean:
-        # Classifier also needs to know the paths to all the full data added before so it can reload that
-        # And then go through all existing data to load extra features => separate method to be written first
+        #    => Go through all existing data to load extra features => separate method to be written first
+        # I tend towards implementing option 2
 
         # Check if data with the same index already exists. If so, do nothing
-        assert index_columns == self.index_columns, 'The newly added dataframe \
-                                                    uses different index columns \
-                                                    than what was used in the \
-                                                    classifier before: New {}, \
-                                                    before {}'.format(index_columns,
+        assert index_columns == self.index_columns, 'The newly added dataframe ' \
+                                                    'uses different index columns ' \
+                                                    'than what was used in the ' \
+                                                    'classifier before: New {}, '\
+                                                    'before {}'.format(index_columns,
                                                                       self.index_columns)
         # Check which indices already exist in the data, only add the others
         new_indices = self._index_not_in_other_df(features, self.train_data)
@@ -83,6 +88,8 @@ class Classifier:
         if len(new_data.index) == 0:
             # No new data to be added: The classifier is being loaded for a
             # site where the data has been loaded before
+            # TODO: Is there a low-priority logging this could be sent to?
+            # Not a warning, just info or debug
             pass
         else:
             new_data['train'] = 0
