@@ -17,6 +17,14 @@ def test_set_check(identifier, test_ratio):
     return crc32(np.int64(hash(identifier))) & 0xFFFFFFFF < test_ratio * 2 ** 32
 
 
+def rename_classifier(classifier_path, new_name):
+    with open(classifier_path, 'rb') as f:
+        clf = pickle.loads(f.read())
+    clf.name = new_name
+    clf.save()
+    # TODO: Delete old version?
+
+
 class Classifier:
     def __init__(self, name, features, training_features, index_columns=None):
         self.name = name
@@ -29,6 +37,15 @@ class Classifier:
         self.predict_data = full_data[["predict"]]
         self.training_features = training_features
         self.data = full_data[self.training_features]
+        # TODO: Check if data is numeric.
+        # 1. Throw some exception for strings
+        # 2. Handle nans: Inform the user.
+        #   Some heuristic: If only < 10% of objects contain nan, ignore those objects
+        #   If a feature is mostly nans (> 10%), ignore the feature (if multiple features are available) or show a warning
+        #   Give the user an option to turn this off? E.g. via channel properties on the label image?
+        # 3. Handle booleans: Convert to numeric 0 & 1.
+
+        # TODO: Enable any kind of data normalization/scaling? Would it make a difference?
 
     # TODO: Change back test_perc to something more reasonable like 0.2
     # Having it at 0.3 now to reduce issues when the dataset has no test samples
