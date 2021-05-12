@@ -74,3 +74,11 @@ If you encounter any problems, please [file an issue] along with a detailed desc
 [tox]: https://tox.readthedocs.io/en/latest/
 [pip]: https://pypi.org/project/pip/
 [PyPI]: https://pypi.org/
+
+## Contributors
+Feature visualization widget: [Joel Lüthi](https://github.com/jluethi)  
+Classifier widgets: [Joel Lüthi](https://github.com/jluethi) & [Max Hess](https://github.com/MaksHess)  
+Regionprops widget: [Robert Haase](https://github.com/haesleinhuepf)  
+
+And support by people from the napari & iamge.sc community like Nicholas Sofroniew, Juan Nunez Iglesias, Draga Doncila Pop, Talley Lambert and many more
+
