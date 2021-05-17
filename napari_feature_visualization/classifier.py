@@ -18,6 +18,12 @@ def test_set_check(identifier, test_ratio):
     return crc32(np.int64(hash(identifier))) & 0xFFFFFFFF < test_ratio * 2 ** 32
 
 
+def load_classifier(classifier_path):
+    with open(classifier_path, 'rb') as f:
+        clf = pickle.loads(f.read())
+    return clf
+
+
 def rename_classifier(classifier_path, new_name, delete_old_version=False):
     with open(classifier_path, 'rb') as f:
         clf = pickle.loads(f.read())
@@ -133,11 +139,22 @@ class Classifier:
             )
         )
         self.predict_data.loc[:] = self.clf.predict(self.data).reshape(-1, 1)
-        print("done")
+        #print("done")
 
-    def predict(self, data):
-        data = data[self.training_features]
-        return self.clf.predict(data)
+    def predict(self, data, ignore_nans=True):
+        # TODO: Ensure that training was run (in case the classifier was saved with new data points but without retraining)
+        # Always rerunning training would be computationally inefficient. Maybe have a flag or send a warning?
+        data = data.loc[:, self.training_features]
+
+        if ignore_nans:
+            # Does not throw an exception if data contains a NaN
+            # Just returns NaN as a result for any cell containing NaNs
+            non_nan = data.isna().sum(axis=1) == 0
+            data['prediction'] = np.nan
+            data.loc[non_nan, 'prediction'] = self.clf.predict(data.loc[non_nan, self.training_features])
+            return np.array(data['prediction'])
+        else:
+            return self.clf.predict(data)
 
     def feature_importance(self):
         return OrderedDict(
@@ -156,7 +173,9 @@ class Classifier:
     def most_important(self, n=5):
         return list(self.feature_importance().keys())[:n]
 
-    def save(self):
+    def save(self, new_name=None):
+        if new_name is not None:
+            self.name=new_name
         s = pickle.dumps(self)
         with open(self.name + ".clf", "wb") as f:
             f.write(s)
