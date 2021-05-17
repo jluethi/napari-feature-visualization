@@ -4,3 +4,5 @@ scikit-image
 napari
 pandas
 matplotlib
+scikit-learn
+PyQt5

@@ -79,3 +79,7 @@ target/
 */_version.py
 /.idea/
 /venv/
+
+# User generated files
+*.clf
+*.csv
