@@ -7,6 +7,7 @@ import numpy as np
 from pathlib import Path
 import pickle
 import os
+from .utils import napari_warn, napari_info
 
 
 def make_identifier(df):
@@ -51,9 +52,10 @@ class Classifier:
         #   Some heuristic: If only < 10% of objects contain nan, ignore those objects
         #   If a feature is mostly nans (> 10%), ignore the feature (if multiple features are available) or show a warning
         #   Give the user an option to turn this off? E.g. via channel properties on the label image?
+        #   => Current implementation should just give NaN results for all cells containing NaNs
+        #   Have a way to notify the user of which features were NaNs? e.g. if one feature is always NaN, the classifier wouldn't do anything anymore
         # 3. Handle booleans: Convert to numeric 0 & 1.
 
-        # TODO: Enable any kind of data normalization/scaling? Would it make a difference? No for a random forest, right?
 
     @staticmethod
     def train_test_split(df, test_perc=0.2, index_columns=None):
@@ -62,9 +64,9 @@ class Classifier:
         )
 
         if in_test_set.sum() == 0:
-            warnings.warn('Not enough training data. No training data was put in the test set and classifier will fail.')
+            napari_warn('Not enough training data. No training data was put in the test set and classifier will fail.')
         if in_test_set.sum() == len(in_test_set):
-            warnings.warn('Not enough training data. All your selections became test data and there is nothing to train the classifier on')
+            napari_warn('Not enough training data. All your selections became test data and there is nothing to train the classifier on')
         return df.iloc[~in_test_set.values, :], df.iloc[in_test_set.values, :]
 
 
@@ -74,12 +76,6 @@ class Classifier:
                 'features provided to the classifier are different to what has '\
                 'been used for training so far. This has not been implemented '\
                 'yet. Old vs. new: {} vs. {}'.format(self.training_features, training_features)
-        # Optionally: Allow option to change training features.
-        # Two possible design implementations:
-        # 1. Always keep all features for the loaded dataframes => memory hungry
-        # 2. Reload dataframes when features are added (potentially io-hungry)
-        #    => Go through all existing data to load extra features => separate method to be written first
-        # I tend towards implementing option 2
 
         # Check if data with the same index already exists. If so, do nothing
         assert index_columns == self.index_columns, 'The newly added dataframe ' \
@@ -126,20 +122,19 @@ class Classifier:
         )
         assert np.all(X_train.index == y_train.index)
         assert np.all(X_test.index == y_test.index)
-        print(
+        napari_info(
             "Annotations split into {} training and {} test samples...".format(
                 len(X_train), len(X_test)
             )
         )
         self.clf.fit(X_train, y_train)
 
-        print(
+        napari_info(
             "F1 score on test set: {}".format(
                 f1_score(y_test, self.clf.predict(X_test), average="macro")
             )
         )
         self.predict_data.loc[:] = self.clf.predict(self.data).reshape(-1, 1)
-        #print("done")
 
     def predict(self, data, ignore_nans=True):
         # TODO: Ensure that training was run (in case the classifier was saved with new data points but without retraining)
@@ -149,6 +144,7 @@ class Classifier:
         if ignore_nans:
             # Does not throw an exception if data contains a NaN
             # Just returns NaN as a result for any cell containing NaNs
+            # TODO: Add a warning about which features contain NaNs and how many cells were ignored
             non_nan = data.isna().sum(axis=1) == 0
             data['prediction'] = np.nan
             data.loc[non_nan, 'prediction'] = self.clf.predict(data.loc[non_nan, self.training_features])

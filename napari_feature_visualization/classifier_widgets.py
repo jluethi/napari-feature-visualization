@@ -4,10 +4,11 @@ from magicgui import widgets
 import pickle
 import pandas as pd
 import numpy as np
+import os
 from pathlib import Path
-import warnings
 from matplotlib.colors import ListedColormap
-from .utils import get_df
+from napari.utils.notifications import show_info
+from .utils import get_df, napari_warn
 from .classifier import Classifier
 
 def _init_classifier(widget):
@@ -66,11 +67,15 @@ def initialize_classifier(viewer: Viewer,
                       feature_selection='',
                       additional_features='',
                       label_column=''):
-    # TODO: Add a warning if a classifier with this name already exists => shall it be overwritten? => Confirmation box
     # TODO: Make feature selection a widget that allows multiple features to be selected, not just one
     # Something like this in QListWidget: https://stackoverflow.com/questions/4008649/qlistwidget-and-multiple-selection
     # See issue here: https://github.com/napari/magicgui/issues/229
     training_features = [feature_selection]
+
+    if not str(DataFrame).endswith('.csv'):
+        napari_warn('The DataFrame path does not lead to a .csv file. This '\
+                      'classifier requires the data to be save in a .csv '\
+                      'file that is readable with pd.read_csv()')
 
     # Workaround: provide a text box to enter additional features separated by comma, parse them as well
     if additional_features:
@@ -80,6 +85,10 @@ def initialize_classifier(viewer: Viewer,
     site_df['path']=DataFrame
     index_columns=('path', label_column)
     site_df = site_df.set_index(list(index_columns))
+
+    if os.path.exists(classifier_name + '.clf'):
+        # TODO: Add a warning if a classifier with this name already exists => shall it be overwritten? => Confirmation box
+        napari_warn('A classifier with this name already exists and will be overwritten')
     clf = Classifier(name=classifier_name, features=site_df, training_features=training_features, index_columns=index_columns)
 
     ClassifierWidget(clf, label_layer, DataFrame, viewer)
@@ -106,9 +115,18 @@ def load_classifier(viewer: Viewer,
                     classifier_path: Path,
                     DataFrame: Path):
     # TODO: Add option to add new features to the classifier that were not added at initialization => unsure where to do this. Should it also be possible when initializing a classifier?
-    # TODO: Add ability to see currently selected features
-    # TODO: Ensure classifier path ends in .clf and DataFrame path ends in .csv
+    # TODO: Add ability to see currently selected features (-> part of being able to change the features)
     #classifier_name = classifier_path.stem
+
+    if not str(DataFrame).endswith('.csv'):
+        napari_warn('The DataFrame path does not lead to a .csv file. This '\
+                      'classifier requires the data to be save in a .csv '\
+                      'file that is readable with pd.read_csv()')
+
+    if not str(classifier_path).endswith('.clf'):
+        napari_warn('The classifier_path does not lead to a .clf file. This '\
+                      'plugin only works with classifiers created by its own '\
+                      'classifier class that are saved as .clf files')
 
     with open(classifier_path, 'rb') as f:
         clf = pickle.loads(f.read())
@@ -189,7 +207,7 @@ class ClassifierWidget:
             label = label_layer.get_value(scaled_position)
             #label = label_layer.get_value(event.position)
             if selector.value is None:
-                warnings.warn('No class is selected. Select a class in the classifier widget.')
+                napari_warn('No class is selected. Select a class in the classifier widget.')
             # Check if background or foreground was clicked. If background was clicked, do nothing (background can't be assigned a class)
             elif label == 0:
                 pass
@@ -202,7 +220,7 @@ class ClassifierWidget:
                     self.clf.train_data.loc[(self.DataFrame, label)] = choices.index(selector.value)
                     self.update_label_colormap(self.selection_layer, label, choices.index(selector.value))
                 else:
-                    warnings.warn('The data that was provided to the classifier '\
+                    napari_warn('The data that was provided to the classifier '\
                                   'does not contain an object with index {}. '\
                                   'Thus, this object cannot be included in the ' \
                                   'classifier'.format(label))
@@ -213,21 +231,72 @@ class ClassifierWidget:
             self.viewer.layers.selection.clear()
             self.viewer.layers.selection.add(self.label_layer)
 
+        @label_layer.bind_key('s')
         @save_button.changed.connect
         def save_classifier(event):
-            print('Saving classifier')
+            show_info('Saving classifier')
             self.clf.save()
 
+        @label_layer.bind_key('t')
         @run_button.changed.connect
         def run_classifier(event):
             # TODO: Add Run mode? Fuzzy, Cross-validated, train/test split
-            print('Running classifier')
+            show_info('Running classifier')
             self.clf.train()
             self.create_label_colormap(self.prediction_layer, self.clf.predict_data, 'predict')
             self.clf.save()
             self.selection_layer.visible=False
             self.prediction_layer.visible=True
             # TODO: Report classifier performance to the user? => Get the print into the napari notification engine
+
+        @label_layer.bind_key('o')
+        def toggle_selection(layer):
+            current = self.selection_layer.visible
+            self.selection_layer.visible = not current
+
+        @label_layer.bind_key('p')
+        def toggle_selection(layer):
+            current = self.prediction_layer.visible
+            self.prediction_layer.visible = not current
+
+        @label_layer.bind_key('v')
+        def toggle_selection(event):
+            # Toggling off the label layer would be inconvenient (can't click on it anymore)
+            # => just toggle the opacity to 0
+            opacity = label_layer.opacity
+            if opacity > 0:
+                label_layer.opacity = 0.0
+            else:
+                label_layer.opacity = 0.8
+
+        @label_layer.bind_key('r')
+        def train_classifier(event):
+            run_classifier(event)
+
+        @label_layer.bind_key('0')
+        def set_class_0(event):
+            selector.value = choices[0]
+            change_choice(event)
+
+        @label_layer.bind_key('1')
+        def set_class_1(event):
+            selector.value = choices[1]
+            change_choice(event)
+
+        @label_layer.bind_key('2')
+        def set_class_2(event):
+            selector.value = choices[2]
+            change_choice(event)
+
+        @label_layer.bind_key('3')
+        def set_class_3(event):
+            selector.value = choices[3]
+            change_choice(event)
+
+        @label_layer.bind_key('4')
+        def set_class_4(event):
+            selector.value = choices[4]
+            change_choice(event)
 
         return container
 
