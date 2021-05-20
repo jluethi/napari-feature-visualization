@@ -2,7 +2,7 @@
 from functools import lru_cache
 import pandas as pd
 from enum import Enum
-from napari.utils.notifications import show_info
+from napari._qt.dialogs.qt_notification import NapariQtNotification
 from napari._qt.qt_event_loop import _ipython_has_eventloop
 import warnings
 
@@ -14,12 +14,12 @@ def get_df(path):
 def napari_warn(message):
     warnings.warn(message)
     if _ipython_has_eventloop():
-        show_info(message)
+        NapariQtNotification(message, 'WARNING').show()
 
 def napari_info(message):
     print(message)
     if _ipython_has_eventloop():
-        show_info(message)
+        NapariQtNotification(message, 'INFO').show()
 
 
 class ColormapChoices(Enum):

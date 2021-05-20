@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 from matplotlib.colors import ListedColormap
 from napari.utils.notifications import show_info
-from .utils import get_df, napari_warn
+from .utils import get_df, napari_warn, napari_info
 from .classifier import Classifier
 
 def _init_classifier(widget):
