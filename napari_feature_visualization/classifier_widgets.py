@@ -269,10 +269,6 @@ class ClassifierWidget:
             else:
                 label_layer.opacity = 0.8
 
-        @label_layer.bind_key('r')
-        def train_classifier(event):
-            run_classifier(event)
-
         @label_layer.bind_key('0')
         def set_class_0(event):
             selector.value = choices[0]
