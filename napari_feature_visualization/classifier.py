@@ -36,6 +36,8 @@ def rename_classifier(classifier_path, new_name, delete_old_version=False):
 
 class Classifier:
     def __init__(self, name, features, training_features, index_columns=None):
+        # TODO: Think about chaining the not classified class to NaN instead of 0
+        # (when manually using the classifier, a user may provide 0s as training input when predicting some binary result)
         self.name = name
         self.clf = RandomForestClassifier()
         full_data = features
@@ -113,13 +115,47 @@ class Classifier:
                 df_overlap.loc[df1_index, 'index_new'] = True
         return df_overlap
 
-    def train(self):
-        X_train, X_test = self.train_test_split(
-            self.data[self.train_data["train"] > 0], index_columns=self.index_columns
-        )
-        y_train, y_test = self.train_test_split(
-            self.train_data[self.train_data["train"] > 0], index_columns=self.index_columns
-        )
+
+    @staticmethod
+    def get_non_na_indices(df, message=''):
+        nan_values = df.isna()
+        non_nan_indices = nan_values.sum(axis=1) == 0
+        if nan_values.sum().sum() > 0:
+            # Inform user about cells being removed and what features contain NaNs
+            na_features = nan_values.sum()
+            features_with_na = na_features[na_features>0]
+            print('{} cells were discarded during {} because they contain NaNs'.format((~non_nan_indices).sum(), message))
+            print('The most NaNs were in {} feature. It contains {} NaNs'.format(features_with_na.idxmax(), features_with_na.max()))
+            if len(features_with_na) > 1:
+                other_features = list(features_with_na.index)
+                other_features.remove(features_with_na.idxmax())
+                print('{} other features also contained NaNs. Those are: {}'.format(len(features_with_na)-1, other_features))
+
+            return non_nan_indices
+        else:
+            return non_nan_indices
+
+
+    def train(self, ignore_nans=True):
+        training_data = self.data[self.train_data["train"] > 0]
+        training_results = self.train_data[self.train_data["train"] > 0]
+
+        if ignore_nans:
+            non_nan_indices = self.get_non_na_indices(training_data, message='training')
+            X_train, X_test = self.train_test_split(
+                training_data[non_nan_indices], index_columns=self.index_columns
+            )
+            y_train, y_test = self.train_test_split(
+                training_results[non_nan_indices], index_columns=self.index_columns
+            )
+        else:
+            X_train, X_test = self.train_test_split(
+                training_data, index_columns=self.index_columns
+            )
+            y_train, y_test = self.train_test_split(
+                training_results, index_columns=self.index_columns
+            )
+
         assert np.all(X_train.index == y_train.index)
         assert np.all(X_test.index == y_test.index)
         napari_info(
@@ -134,23 +170,20 @@ class Classifier:
                 f1_score(y_test, self.clf.predict(X_test), average="macro")
             )
         )
-        self.predict_data.loc[:] = self.clf.predict(self.data).reshape(-1, 1)
+        self.predict_data.loc[:] = self.predict(self.data).reshape(-1, 1)
 
     def predict(self, data, ignore_nans=True):
         # TODO: Ensure that training was run (in case the classifier was saved with new data points but without retraining)
         # Always rerunning training would be computationally inefficient. Maybe have a flag or send a warning?
-        data = data.loc[:, self.training_features]
-
         if ignore_nans:
             # Does not throw an exception if data contains a NaN
             # Just returns NaN as a result for any cell containing NaNs
-            # TODO: Add a warning about which features contain NaNs and how many cells were ignored
-            non_nan = data.isna().sum(axis=1) == 0
-            data['prediction'] = np.nan
+            non_nan = self.get_non_na_indices(data.loc[:, self.training_features], message='prediction')
+            data.loc[:, 'prediction'] = np.nan
             data.loc[non_nan, 'prediction'] = self.clf.predict(data.loc[non_nan, self.training_features])
             return np.array(data['prediction'])
         else:
-            return self.clf.predict(data)
+            return self.clf.predict(data.loc[:, self.training_features])
 
     def feature_importance(self):
         return OrderedDict(
