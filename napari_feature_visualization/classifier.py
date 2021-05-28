@@ -165,12 +165,16 @@ class Classifier:
         )
         self.clf.fit(X_train, y_train)
 
+        f1 = f1_score(y_test, self.clf.predict(X_test), average="macro")
         napari_info(
             "F1 score on test set: {}".format(
-                f1_score(y_test, self.clf.predict(X_test), average="macro")
+                f1
             )
         )
+        print(X_train.columns)
+        print(self.data.columns)
         self.predict_data.loc[:] = self.predict(self.data).reshape(-1, 1)
+        return f1
 
     def predict(self, data, ignore_nans=True):
         # TODO: Ensure that training was run (in case the classifier was saved with new data points but without retraining)
@@ -179,9 +183,11 @@ class Classifier:
             # Does not throw an exception if data contains a NaN
             # Just returns NaN as a result for any cell containing NaNs
             non_nan = self.get_non_na_indices(data.loc[:, self.training_features], message='prediction')
-            data.loc[:, 'prediction'] = np.nan
-            data.loc[non_nan, 'prediction'] = self.clf.predict(data.loc[non_nan, self.training_features])
-            return np.array(data['prediction'])
+            #print(self.predict_data)
+            print()
+            self.predict_data.loc[:, 'predict'] = np.nan
+            self.predict_data.loc[non_nan, 'predict'] = self.clf.predict(data.loc[non_nan, self.training_features])
+            return np.array(self.predict_data['predict'])
         else:
             return self.clf.predict(data.loc[:, self.training_features])
 
