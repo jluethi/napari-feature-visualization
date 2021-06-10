@@ -39,9 +39,8 @@ So far, git clone it and pip install it using:
     cd napari-feature-visualization
     pip install .
 ```
-For full functionality, recent bug-fixes in napari and magicgui are required that have not been released via pipy yet. To get the pre-release version, install them directly:
+For full functionality, recent bug-fixes in magicgui are required that have not been released via pipy yet. To get the pre-release version, install them directly:
 ```
-pip install git+https://github.com/napari/napari.git
 pip install git+https://github.com/napari/magicgui.git
 ```
 
