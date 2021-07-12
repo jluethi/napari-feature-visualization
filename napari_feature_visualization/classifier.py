@@ -2,6 +2,7 @@ from collections import OrderedDict
 from zlib import crc32
 from sklearn.metrics import f1_score
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -35,11 +36,14 @@ def rename_classifier(classifier_path, new_name, delete_old_version=False):
 
 
 class Classifier:
-    def __init__(self, name, features, training_features, index_columns=None):
+    def __init__(self, name, features, training_features, method='rfc', index_columns=None):
         # TODO: Think about chaining the not classified class to NaN instead of 0
         # (when manually using the classifier, a user may provide 0s as training input when predicting some binary result)
         self.name = name
-        self.clf = RandomForestClassifier()
+        if method == 'rfc':
+            self.clf = RandomForestClassifier()
+        elif method == 'lrc':
+            self.clf = LogisticRegression()
         full_data = features
         full_data.loc[:, "train"] = 0
         full_data.loc[:, "predict"] = 0
@@ -137,6 +141,7 @@ class Classifier:
 
 
     def train(self, ignore_nans=True):
+        # TODO: Select training data differently. 0 could be a valid training input
         training_data = self.data[self.train_data["train"] > 0]
         training_results = self.train_data[self.train_data["train"] > 0]
 
@@ -163,7 +168,7 @@ class Classifier:
                 len(X_train), len(X_test)
             )
         )
-        self.clf.fit(X_train, y_train)
+        self.clf.fit(X_train, y_train['train'])
 
         f1 = f1_score(y_test, self.clf.predict(X_test), average="macro")
         napari_info(
@@ -171,8 +176,6 @@ class Classifier:
                 f1
             )
         )
-        print(X_train.columns)
-        print(self.data.columns)
         self.predict_data.loc[:] = self.predict(self.data).reshape(-1, 1)
         return f1
 
@@ -183,11 +186,9 @@ class Classifier:
             # Does not throw an exception if data contains a NaN
             # Just returns NaN as a result for any cell containing NaNs
             non_nan = self.get_non_na_indices(data.loc[:, self.training_features], message='prediction')
-            #print(self.predict_data)
-            print()
-            self.predict_data.loc[:, 'predict'] = np.nan
-            self.predict_data.loc[non_nan, 'predict'] = self.clf.predict(data.loc[non_nan, self.training_features])
-            return np.array(self.predict_data['predict'])
+            data.loc[:, 'predict'] = np.nan
+            data.loc[non_nan, 'predict'] = self.clf.predict(data.loc[non_nan, self.training_features])
+            return np.array(data['predict'])
         else:
             return self.clf.predict(data.loc[:, self.training_features])
 
