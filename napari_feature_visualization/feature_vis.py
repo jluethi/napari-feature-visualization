@@ -49,8 +49,14 @@ def _init(widget):
         df = get_df(widget.DataFrame.value)
         try:
             quantiles=(0.01, 0.99)
-            widget.lower_contrast_limit.value = df[event.value].quantile(quantiles[0])
-            widget.upper_contrast_limit.value = df[event.value].quantile(quantiles[1])
+            # widget.lower_contrast_limit.value = df[event.value].quantile(quantiles[0])
+            # widget.upper_contrast_limit.value = df[event.value].quantile(quantiles[1])
+            print(widget.lower_contrast_limit)
+            print(type(widget.lower_contrast_limit))
+            print(event)
+            widget.lower_contrast_limit.value = df[event].quantile(quantiles[0])
+            widget.upper_contrast_limit.value = df[event].quantile(quantiles[1])
+            print(widget.lower_contrast_limit.value)
         except KeyError:
             # Don't update the limits if a feature name is entered that isn't in the dataframe
             pass
