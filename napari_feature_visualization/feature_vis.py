@@ -13,14 +13,19 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from .utils import get_df, ColormapChoices
+from napari.utils.colormaps import DirectLabelColormap
 
 def _init(widget):
     def get_feature_choices(*args):
-        try:
-            df = get_df(widget.DataFrame.value)
+        if widget.load_features_from.value == "CSV File":
+            try:
+                df = get_df(widget.DataFrame.value)
+                return list(df.columns)
+            except IOError:
+                return [""]
+        else:
+            df = pd.DataFrame(widget.label_layer.value.properties)
             return list(df.columns)
-        except IOError:
-            return [""]
 
     # set feature and label_column "default choices"
     # to be a function that gets the column names of the
@@ -44,9 +49,35 @@ def _init(widget):
         elif 'index' in features:
             widget.label_column.value = 'index'
 
+    @widget.load_features_from.changed.connect
+    def update_df_columns(event):
+        # event value will be the new path
+        # get_df will give you the cached df
+        # ...reset_choices() calls the "get_feature_choices" function above
+        # to keep them updated with the current dataframe
+        widget.feature.reset_choices()
+        widget.label_column.reset_choices()
+        features = widget.feature.choices
+        if 'label' in features:
+            widget.label_column.value = 'label'
+        elif 'Label' in features:
+            widget.label_column.value = 'Label'
+        elif 'index' in features:
+            widget.label_column.value = 'index'
+
+        # if load_features_from is toggled, make the widget.DataFrame disappear
+        if widget.load_features_from.value == "Layer Properties":
+            widget.DataFrame.hide()
+        else:
+            widget.DataFrame.show()
+
     @widget.feature.changed.connect
     def update_rescaling(event):
-        df = get_df(widget.DataFrame.value)
+        if widget.load_features_from.value == "CSV File":
+            df = get_df(widget.DataFrame.value)
+        else:
+            df = pd.DataFrame(widget.label_layer.value.properties)
+
         try:
             quantiles=(0.01, 0.99)
             # widget.lower_contrast_limit.value = df[event.value].quantile(quantiles[0])
@@ -98,6 +129,9 @@ def _init(widget):
 @magic_factory(
         call_button="Apply Feature Colormap",
         layout='vertical',
+        load_features_from={"widget_type": "RadioButtons",
+                            "choices": ["CSV File", "Layer Properties"],
+                            "value": "CSV File"},
         DataFrame={'mode': 'r'},
         lower_contrast_limit={"min": -100000000, "max": 100000000},
         upper_contrast_limit={"min": -100000000, "max": 100000000},
@@ -105,12 +139,19 @@ def _init(widget):
         label_column = {"choices": [""]}, widget_init=_init,
         )
 def feature_vis(label_layer: "napari.layers.Labels",
+                load_features_from: str,
                 DataFrame: pathlib.Path,
                 feature = '',
                 label_column = '',
                 Colormap=ColormapChoices.viridis,
                 lower_contrast_limit: float = 100, upper_contrast_limit: float = 900):
-    site_df = get_df(DataFrame)
+
+    if load_features_from == "CSV File":
+        site_df = get_df(DataFrame)
+    else:
+        site_df = pd.DataFrame(label_layer.properties)
+        label_column = 'label'
+
     site_df.loc[:, 'label'] = site_df[str(label_column)].astype(int)
     # Check that there is one unique label for every entry in the dataframe
     # => It's a site dataframe, not one containing many different sites
@@ -133,10 +174,12 @@ def feature_vis(label_layer: "napari.layers.Labels",
     label_properties = {feature: np.round(properties_array, decimals=2)}
 
     colormap = dict(zip(site_df['label'], colors))
-    label_layer.color = colormap
-    try:
-        label_layer.properties = label_properties
-    except UnboundLocalError:
-        # If a napari version before 0.4.8 is used, this can't be displayed yet
-        # This this thread on the bug: https://github.com/napari/napari/issues/2477
-        print("Can't set label properties in napari versions < 0.4.8")
+    label_layer.colormap = DirectLabelColormap(color_dict=colormap)
+
+    if load_features_from == "CSV File":
+        try:
+            label_layer.properties = label_properties
+        except UnboundLocalError:
+            # If a napari version before 0.4.8 is used, this can't be displayed yet
+            # This this thread on the bug: https://github.com/napari/napari/issues/2477
+            print("Can't set label properties in napari versions < 0.4.8")
