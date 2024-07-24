@@ -1,5 +1,11 @@
+# This is an archive
 
-# napari-feature-visualization
+The [feature visualization plugin is now available here.](https://github.com/fractal-napari-plugins-collection/napari-feature-visualization)  
+The [feature classifier plugin is now available here.](https://github.com/fractal-napari-plugins-collection/napari-feature-classifier)
+
+------------------
+------------------
+------------------
 
 [![License](https://img.shields.io/pypi/l/napari-feature-visualization.svg?color=green)](https://github.com/jluethi/napari-feature-visualization/raw/master/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/napari-feature-visualization.svg?color=green)](https://pypi.org/project/napari-feature-visualization)
